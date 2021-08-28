@@ -1,26 +1,45 @@
 ### Introduction
 
-A small NLP kata to solve for hidden words in a matrix limited to a natural language context.
+An elementary NLP kata to solve for hidden words in a matrix. Words are limited to a natural language context.
 
 ### Pre-Requisite
 
-- you need to have PDM, Wikipedia library and nltk library
+- Python 3.9+
 
-- nltk errors are thrown if there are not supporting ntlk resources
+- A supercool package manager [PDM](https://pdm.fming.dev/),
 
-nltk.download(<resources>) should solve the issues
+- Python libraries :
+    - Wikipedia library
+    - nltk library
+
+- nltk errors are thrown if there are no corpora support resources like stopwords
+
+  `nltk.download(stopwords)` should solve the issue
+
+### Code structure
+.
+|-- README.md
+|-- __init__.py
+|-- data
+|-- main.py
+|-- pyproject.toml
+`-- wiki_corpus.py
+
 
 ### How to run
 
-- 1. Build the corpus
+- 1. Install project dependencies
+    `pdm install`
+
+- 2. Build the corpus
 
     `pdm run python wiki_corpus.py`
 
-- 2. Run the solver
+- 3. Run the solver
     `pdm run python main.py`
 
-- 3. Performance evaluation
+- 4. Performance evaluation
 
-    evaluate performance using time:
+     Use time utility to get performance insights.
 
     `time pdm run python main.py`
