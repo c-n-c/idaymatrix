@@ -17,6 +17,7 @@ An elementary NLP kata to solve for hidden words in a matrix. Words are limited 
   `nltk.download(stopwords)` should solve the issue
 
 ### Code structure
+```
 .
 |-- README.md
 |-- __init__.py
@@ -24,7 +25,7 @@ An elementary NLP kata to solve for hidden words in a matrix. Words are limited 
 |-- main.py
 |-- pyproject.toml
 `-- wiki_corpus.py
-
+```
 
 ### How to run
 
