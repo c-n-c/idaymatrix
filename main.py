@@ -2,8 +2,10 @@ from nltk.corpus import stopwords
 from nltk.probability import FreqDist
 from nltk.tag import pos_tag
 from nltk.corpus.reader import PlaintextCorpusReader
-import pprint
+import math
 import os
+import pprint
+import copy
 
 
 LIST_CHALLENGE = [
@@ -19,7 +21,7 @@ LIST_CHALLENGE = [
     ['i', 'k', 'o', 'p', 'u', 's', 'w', 't', 'c', 'i', 'o', 'q'],
 ]
 
-
+F_THRESHOLD = 15
 DUMP_DIR = "data"
 
 current_dump_dir = os.path.abspath(os.curdir) + os.path.sep + DUMP_DIR
@@ -86,7 +88,7 @@ def trim_words_with_frequency(all_found):
     order_words_by_frequency = list(matched_words.keys())
     order_words_by_frequency.sort(key=lambda x: - matched_words[x])
     #print("all words ->", order_words_by_frequency)
-    cleaned_words = [each for each in order_words_by_frequency if matched_words[each] >= 15]
+    cleaned_words = [each for each in order_words_by_frequency if matched_words[each] >= F_THRESHOLD]
     cleaned_words.sort(key=lambda x: -len(x))
     #print("most common ->", cleaned_words)
     return cleaned_words
@@ -119,10 +121,40 @@ def reduce_noise_by_POS_tagging(word_list):
     return survived_words
 
 
-def solve_for_TF_IDF(words_list):
-    para_set = []
-    for index, data in enumerate(reader.paras()):
-        para_set[index] = filter_stopwords(data)
+def get_TF_IDF(words_list):
+    tf = {}.fromkeys(words_list, [])
+    # term_total = {}.fromkeys(words_list,0)  # redundant
+    paras_list = reader.paras()
+    stop_set =  set(stopwords.words('english'))
+    for para_index, para in enumerate(paras_list):
+        flat_para = []
+        for line in para:
+            flat_para.extend(line)
+        clean_para = [each for each in flat_para if each in set(flat_para).difference(stop_set)]
+        freq_para = FreqDist(clean_para)
+        intersect = set(words_list).intersection(set(clean_para))
+        if intersect:
+            for word in intersect:
+                current_list = copy.copy(tf[word])
+                if current_list:
+                    current_list.append((para_index, freq_para.freq(word)))
+                    new_list = current_list
+                else:
+                    new_list = [(para_index, freq_para.freq(word))]
+                tf[word] = new_list
+                # term_total[word] += 1
+
+    doc_count = len(paras_list)
+    idf = {key: math.log(doc_count/len(tf[key])) for key in tf.keys() if len(tf[key]) > 0}
+    # return TFXIDF scores for each term
+    term_popularity = sorted(tf, key=lambda x: len(tf[x]), reverse=True)
+    tf_idf = {}
+    for term in term_popularity:
+        term_idf = idf[term]
+        tf_idf_term = [(item[0], item[1]* term_idf) for item in tf[term]]
+        tf_idf_term.sort(key=lambda x: x[1], reverse=True)
+        tf_idf[term] = tf_idf_term
+    return tf_idf, paras_list
 
 
 if __name__ == "__main__":
@@ -131,13 +163,20 @@ if __name__ == "__main__":
     filtered_words = list(filter_stopwords(words_list))
     print(f"total unique words extracted from matrix ->{len(filtered_words)}")
     all_found = match_from_wiki_corpus(filtered_words)
-    # print(f"total words matching in corpus->{len(all_found)} \n {all_found}")
-    cleaned_words = trim_words_with_frequency(list(all_found))
+    # # print(f"total words matching in corpus->{len(all_found)} \n {all_found}")
+    # cleaned_words = trim_words_with_frequency(list(all_found))
     survived_words = reduce_noise_by_POS_tagging(list(all_found))
-    # print(f"total survied tags->{len(survived_words)}\n{survived_words}")
-    cascade_frequency_filter_pos_tagging = [(each, *survived_words[each]) for each in cleaned_words\
-    if each in survived_words.keys() and survived_words[each][0] not in ("NNS", "JJ")]
-    # pprint.pprint(cascade_frequency_filter_pos_tagging)
-    print(f"total recommendations from cascade of freq. filter"
-          f"along with pos tagging filter->{len(cascade_frequency_filter_pos_tagging)}")
-
+    # # print(f"total survied tags->{len(survived_words)}\n{survived_words}")
+    # cascade_frequency_filter_pos_tagging = [(each, *survived_words[each]) for each in cleaned_words\
+    # if each in survived_words.keys() and survived_words[each][0] not in ("NNS", "JJ")]
+    # print(f"total recommendations from cascade of freq. filter"
+    #       f" along with pos tagging filter->{len(cascade_frequency_filter_pos_tagging)}")
+    # # pprint.pprint(cascade_frequency_filter_pos_tagging)
+    tf_idf, paras_list = get_TF_IDF(list(all_found))
+    cascade_tf_idf_pos_tagging = [(each, survived_words[each][0],
+    " ".join([" ".join(line) for line in paras_list[tf_idf[each][0][0]]])) for each in tf_idf.keys()\
+    if each in survived_words.keys() and survived_words[each][0] not in ("NNS", "JJ")\
+    and len(tf_idf[each]) >= F_THRESHOLD]
+    print(f"total recommendations from cascade of tfxidf. filter"
+          f" along with pos tagging filter->{len(cascade_tf_idf_pos_tagging)}")
+    pprint.pprint(cascade_tf_idf_pos_tagging)
